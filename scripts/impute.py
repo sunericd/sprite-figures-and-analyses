@@ -1,10 +1,9 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import scanpy as sc
 import squidpy as sq
 from scipy.stats import pearsonr, spearmanr
-from sklearn.decomposition import PCA, NMF
+from sklearn.decomposition import PCA
 import anndata as ad
 import warnings
 import time
