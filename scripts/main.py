@@ -317,18 +317,12 @@ def predict_gene_expression (spatial_adata, RNAseq_adata,
         warnings.warn("Some target_genes are already measured in the spatial_adata object!")
     
     # first pass over all genes
-    if method == "onn":
-        predicted_expression_target = knn_impute(spatial_adata,RNAseq_adata,genes_to_predict=target_genes,n_neighbors=1,**kwargs)
-    elif method == "knn":
-        predicted_expression_target = knn_impute(spatial_adata,RNAseq_adata,genes_to_predict=target_genes,**kwargs)
-    elif method == "spage":
+    if method == "spage":
         predicted_expression_target = spage_impute(spatial_adata,RNAseq_adata,genes_to_predict=target_genes,**kwargs)
     elif method == "gimvi":
         predicted_expression_target = gimvi_impute(spatial_adata,RNAseq_adata,genes_to_predict=target_genes,**kwargs)
     elif method == "tangram":
         predicted_expression_target = tangram_impute(spatial_adata,RNAseq_adata,genes_to_predict=target_genes,**kwargs)
-    elif method == "stplus":
-        predicted_expression_target = stplus_impute(spatial_adata,RNAseq_adata,genes_to_predict=target_genes,**kwargs)
     else:
         raise Exception ("method not recognized")
         
@@ -361,18 +355,13 @@ def predict_gene_expression (spatial_adata, RNAseq_adata,
     folds = np.array_split(conf_genes, n_folds)
     
     for gi, fold in enumerate(folds):
-        if method == "onn":
-            loo_expression = knn_impute(spatial_adata[:,~spatial_adata.var_names.isin(fold)],RNAseq_adata,genes_to_predict=list(fold)+target_genes,n_neighbors=1,**kwargs)
-        elif method == "knn":
+        
+        if method == "knn":
             loo_expression = knn_impute(spatial_adata[:,~spatial_adata.var_names.isin(fold)],RNAseq_adata,genes_to_predict=list(fold)+target_genes,**kwargs)
         elif method == "spage":
             loo_expression = spage_impute(spatial_adata[:,~spatial_adata.var_names.isin(fold)],RNAseq_adata,genes_to_predict=list(fold)+target_genes,**kwargs)
-        elif method == "gimvi":
-            loo_expression = gimvi_impute(spatial_adata[:,~spatial_adata.var_names.isin(fold)],RNAseq_adata,genes_to_predict=list(fold)+target_genes,**kwargs)
         elif method == "tangram":
             loo_expression = tangram_impute(spatial_adata[:,~spatial_adata.var_names.isin(fold)],RNAseq_adata,genes_to_predict=list(fold)+target_genes,**kwargs)
-        elif method == "stplus":
-            loo_expression = stplus_impute(spatial_adata[:,~spatial_adata.var_names.isin(fold)],RNAseq_adata,genes_to_predict=list(fold)+target_genes,**kwargs)
         else:
             raise Exception ("method not recognized")
     
@@ -456,38 +445,6 @@ def spage_impute (spatial_adata, RNAseq_adata, genes_to_predict, **kwargs):
     RNAseq_data.index = RNAseq_adata.var_names.values
     # predict with SpaGE
     predicted_expression = SpaGE(spatial_data.T,RNAseq_data.T,genes_to_predict=genes_to_predict,**kwargs)
-    
-    return(predicted_expression)
-
-
-def gimvi_impute (spatial_adata, RNAseq_adata, genes_to_predict, **kwargs):
-    '''
-    Run gimVI gene imputation
-    '''
-    import scvi
-    from scvi.external import GIMVI
-    import torch
-    from torch.nn.functional import softmax, cosine_similarity, sigmoid
-    
-    spatial_adata = spatial_adata[:, spatial_adata.var_names.isin(RNAseq_adata.var_names)]
-    predict_idxs = [list(RNAseq_adata.var_names).index(gene) for gene in genes_to_predict]
-    
-    spatial_adata = spatial_adata.copy()
-    RNAseq_adata = RNAseq_adata.copy()
-    
-    # setup anndata for scvi
-    GIMVI.setup_anndata(spatial_adata)
-    GIMVI.setup_anndata(RNAseq_adata)
-    
-    # train gimVI model
-    model = GIMVI(RNAseq_adata, spatial_adata, **kwargs)
-    #model.to_device("cuda")
-    model.train(10)
-    
-    # apply trained model for imputation
-    _, imputation = model.get_imputed_values(normalized=False)
-    imputed = imputation[:, predict_idxs]
-    predicted_expression = pd.DataFrame(imputed, columns=genes_to_predict)
     
     return(predicted_expression)
 
@@ -641,7 +598,6 @@ def select_alpha(X, Y, S, alpha, update_method, npcs, max_iter, tol, scale=None,
                 pearsons.append(pearsonr(Xt1[:,j],Y[:,j])[0])
                 pearsons_baseline.append(pearsonr(X[:,j],Y[:,j])[0])
             scores = np.array(pearsons_baseline) - np.array(pearsons)
-            #scores = [-1 if pearsons[i]-pearsons_baseline[i]>0 else 1 for i in range(X.shape[1])]
             values.append(np.nanmean(scores))
             
         elif metric == "Ensemble":
@@ -946,12 +902,20 @@ def smooth (adata, predicted=None, update_method="joint",
 def large_save(adata, dirpath):
     '''
     Saves anndata objects by saving each obsm value with its {key}.csv as pandas dataframe
+    Saves each uns value that is a dataframe with uns/{key}.csv as pandas dataframe
     Then saves the anndata object with obsm removed.
     
-    adata - AnnData object to save
-    dirpath [str] - path to directory for where to save the h5ad and csv files; will create if not existing
-        adata will be saved as {dirpath}/adata.h5ad
-        obsm will be saved as {dirpath}/{key}.csv
+    Parameters
+    ----------
+        adata [AnnData] - AnnData object to save
+        
+        dirpath [str] - path to directory for where to save the h5ad and csv files; will create if not existing
+            adata will be saved as {dirpath}/adata.h5ad
+            obsm will be saved as {dirpath}/{key}.csv
+        
+    Returns
+    -------
+        Saves anndata object in "large" folder format
     '''
     # check if dirpath exists; else create it
     if not os.path.exists(dirpath):
@@ -965,26 +929,57 @@ def large_save(adata, dirpath):
     # remove the obsm metadata from the anndata object
     adatac = adata.copy()
     adatac.obsm = {}
+    
+    # extract the uns metadata and save it as separate csv files
+    del_keys = []
+    for key, value in adatac.uns.items():
+        if isinstance(value, pd.DataFrame):
+            if not os.path.exists(os.path.join(dirpath,"uns")):
+                os.makedirs(os.path.join(dirpath,"uns"))
+            df = pd.DataFrame(value)
+            df.to_csv(os.path.join(dirpath,"uns",f"{key}.csv"), index=False)
+            del_keys.append(key)
+    
+    # remove uns metadata from the anndata object
+    for key in del_keys:
+        del adatac.uns[key]
 
     # save the new anndata object
     adatac.write(os.path.join(dirpath, "adata.h5ad"))
 
 
 
-def large_load(dirpath):
+def large_load(dirpath, skipfiles=[]):
     '''
-    Loads in anndata and associated pandas dataframe csv files to be added to obsm metadata.
+    Loads in anndata and associated pandas dataframe csv files to be added to obsm metadata and uns metadata.
     Input is the directory path to the output directory of large_save()
+    
+    Parameters
+    ----------
+        dirpath [str] - path to directory for where outputs of large_save() are located
+        skipfiles [list] - list of filenames to exclude from anndata object
+    
+    Returns
+    -------
+        adata - AnnData object loaded from dirpath along with all obsm and uns key values added to metadata
     '''
     # read h5ad anndata object
     adata = ad.read_h5ad(os.path.join(dirpath, "adata.h5ad"))
     
     # read and load in obsm from CSV files
     for fn in os.listdir(dirpath):
-        if ".csv" in fn:
+        if (".csv" in fn) and (fn not in skipfiles):
             df = pd.read_csv(os.path.join(dirpath, fn))
             df.index = adata.obs_names
             key = fn.split(".")[0]
             adata.obsm[key] = df
+            
+    # read and load any usn metadata from CSV files
+    if os.path.isdir(os.path.join(dirpath,"uns")):
+        for fn in os.listdir(os.path.join(dirpath,"uns")):
+            if (".csv" in fn) and (fn not in skipfiles):
+                df = pd.read_csv(os.path.join(dirpath,"uns",fn))
+                key = fn.split(".")[0]
+                adata.uns[key] = df
             
     return(adata)

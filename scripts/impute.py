@@ -33,7 +33,7 @@ else:
     n_folds = int(n_folds)
 save_intermediate = args.save_intermediate
     
-methods = ["knn", "spage", "tangram"] # "gimvi", "onn", 
+methods = ["knn", "spage", "tangram"]
 alphas_list = np.linspace(0.01, 0.9, 10)
 savedir = "SPRITE_001_09_10"
 
@@ -144,6 +144,8 @@ for method in methods:
             start_time = time.time()
             smooth(sub_adata, predicted="reinforced_gene_joint_"+method+"_predicted_expression", alpha=alphas_list, tol=1e-8, update_method="joint", optimization_metric="Ensemble", savedir=os.path.join("S_alpha_"+dataset_name,"fold"+str(i)))
             smooth_time_col.append(time.time() - start_time)
+            smooth(sub_adata, predicted=method+"_predicted_expression", alpha=alphas_list, tol=1e-8, update_method="joint", optimization_metric="Ensemble")
+            
             
             # Add new predictions
             if i == 0:
@@ -188,7 +190,15 @@ for method in methods:
 
 # save results in anndata
 preprocess_data(adata, standardize=False, normalize=False) # to keep consistent with predictions
-adata.write(savedir+"/"+dataset_name+"_"+"_".join(methods)+".h5ad")
+
+# if error loading (i.e. metadata too large), then large_save instead
+try:
+    adata.write(savedir+"/"+dataset_name+"_"+"_".join(methods)+".h5ad")
+    adata2 = sc.read_h5ad(savedir+"/"+dataset_name+"_"+"_".join(methods)+".h5ad")
+except:
+    large_save(adata, savedir+"/"+dataset_name+"_"+"_".join(methods))
+    os.remove(savedir+"/"+dataset_name+"_"+"_".join(methods)+".h5ad")
+
 
 # save runtimes as dataframe
 rt_df = pd.DataFrame([])

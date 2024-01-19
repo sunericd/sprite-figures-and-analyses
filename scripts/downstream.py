@@ -146,9 +146,6 @@ def get_metrics (adata, keys=None, presmooth=False):
     df.columns = ["SCC", "PCC", "MAE", "Postprocessing", "Model", "Gene"]
     df = df.astype({"SCC":"float", "PCC":"float", "MAE":"float", "Postprocessing":"str", "Model":"str", "Gene":"str"})
     
-    # Sanity check
-    #print(np.unique(df["Postprocessing"], return_counts=True))
-    
     return(df)
     
     
@@ -268,14 +265,6 @@ def leiden_clustering(adata, pca=True, inplace=False, **kwargs):
     
     return (adata.obs['leiden'].copy(), adata.obsm['X_pca'].copy())
 
-
-def get_pseudotime_trajectory (adata, method="dpt"):
-    '''
-    
-    '''
-
-
-    return (pseudotimes, terminal_states)
 
 
 def run_umap(adata):
