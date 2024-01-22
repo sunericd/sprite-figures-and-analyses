@@ -98,7 +98,7 @@ for method in methods:
             # Spatial Graph
             start_time = time.time()
             build_spatial_graph(sub_adata, method="fixed_radius", n_neighbors=50)
-            calc_adjacency_weights(sub_adata, method="cosine")#, confidence=method+"_combined_loo_expression")
+            calc_adjacency_weights(sub_adata, method="cosine")
             graph_time_col.append(time.time() - start_time)
             
             # Pre-smoothing
@@ -116,7 +116,6 @@ for method in methods:
                 if len(sub_adata.var_names) < 40:
                     n_pv = 20
                 else:
-                    #n_pv = round(len(sub_adata.var_names)/2)
                     n_pv = round(np.min([len(sub_adata.var_names), len(sub_adata.obs_names)])/2)
                 
                 predict_gene_expression (sub_adata, RNAseq_adata, target_genes,
@@ -129,9 +128,6 @@ for method in methods:
                                          method=method, n_folds=n_folds)
             predict_time_col.append(time.time() - start_time)
             npredict_col.append(1+len(sub_adata.var_names))
-            
-            ### save for testing purposes
-            #sub_adata.write(dataset_name+"_testing_fold_"+".h5ad")
             
             # Reinforce
             start_time = time.time()

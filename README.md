@@ -4,7 +4,7 @@ Intermediate results for downstream analysis are generated using the ```impute.p
 
 This repository contains all Jupyter notebooks and Python scripts for generating data and figures associated with the SPRITE manuscript. If you use this code or find it useful, we would appreciate it if you cite the relevant publication:
 
-"SPRITE: a meta-algorithm that improves spatial gene expression prediction" (preprint to be updated soon)
+"SPRITE: improving spatial gene expression imputation with gene and cell networks" (preprint to be updated soon)
 
 
 To set up a conda environment for these analyses, we recommend installing all dependencies in a new conda environment and then setting that new environment as a jupyter kernel for use in the notebooks. The conda environment is outlined in ```environment.yml```.
